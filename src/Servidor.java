@@ -1,6 +1,6 @@
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,17 +17,23 @@ public class Servidor {
     }
 
     public static void main(String[] args) {
+        int puerto = 3000;
         try {
-            ServerSocket socketServidor = new ServerSocket(1234);
-            System.out.println("Esperando Conexiones...");
+            DatagramSocket socket = new DatagramSocket(puerto);// indicar número de puerto
+            System.out.println("Servidor esperando conexiones...");
 
             while (true) {
-                //obtener la dirección del socket del cliente
-                Socket socketCliente = socketServidor.accept();
-                //crear una instancia de la clase extendida 
-                HiloCliente hilo = new HiloCliente(socketCliente);
-                //llamar el método start para iniciar la ejecución del hilo
-                hilo.start();
+                // crear arreglo de bytes para recibir los datos
+                byte[] bufferEntrada = new byte[1024];
+                // crear datagrama para recibir los datos
+                DatagramPacket paqueteEntrada = new DatagramPacket(bufferEntrada, bufferEntrada.length);
+                // recibir el paquete o el datagrama
+                socket.receive(paqueteEntrada);
+
+                // iniciar un hilo para cada cliente
+                Thread hiloCliente = new HiloCliente(socket, paqueteEntrada);
+                hiloCliente.start();
+  
             }
         } catch (IOException e) {
             e.printStackTrace();

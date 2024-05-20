@@ -1,49 +1,89 @@
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.util.Scanner;
 
 //1. Crear una clase que se extienda de la clase Thread
 public class HiloCliente extends Thread {
-    private Socket socketCliente;
+    private DatagramSocket socket;
+    private DatagramPacket paqueteEntrada;
     private static int indicePregunta = 0;
 
-    public HiloCliente(Socket socketCliente) {
-        this.socketCliente = socketCliente;
+    public HiloCliente(DatagramSocket socket, DatagramPacket paqueteEntrada) {
+        this.socket = socket;
+        this.paqueteEntrada = paqueteEntrada;
     }
-//2. Sobrescribir el método run con toda la lógica que requerirá el hilo que le asignará el servidor a cada cliente
+
+    // 2. Sobrescribir el método run con toda la lógica que requerirá el hilo que le
+    // asignará el servidor a cada cliente
     public void run() {
+
+        String mensajeAlCliente;
+        byte[] bufferSalida;
+
         try {
-            BufferedReader entrada = new BufferedReader(new InputStreamReader(socketCliente.getInputStream()));
-            PrintWriter salida = new PrintWriter(socketCliente.getOutputStream(), true);
+            Scanner escaner = new Scanner(System.in);
+            // extraer la información del paquete
+            String mensajeRecibido = new String(paqueteEntrada.getData());
+            System.out.println("El mensaje del cliente es: " + mensajeRecibido);
+
+            // obtener la dirección del cliente
+            InetAddress direccionClienteIp = paqueteEntrada.getAddress();
+            int puertoCliente = paqueteEntrada.getPort();
 
             while (true) {
                 if (indicePregunta < Servidor.getPreguntas().size()) {
                     Pregunta preguntaActual = Servidor.getPreguntas().get(indicePregunta);
-                    salida.println(preguntaActual.getPregunta());
+                   String mensajeSalida = preguntaActual.getPregunta();
+                   bufferSalida=mensajeSalida.getBytes();
+                   DatagramPacket paqueteSalida1 = new DatagramPacket(bufferSalida, bufferSalida.length,
+                                direccionClienteIp, puertoCliente);
+                        socket.send(paqueteSalida1);
 
-                    String respuestaCliente = entrada.readLine();
-                    System.out.println("Respuesta: " + respuestaCliente);
-                    if (preguntaActual.esRespuestaCorrecta(respuestaCliente)) {
-                        salida.println("Correcto!");
+                    String respuestaRecibida = new String(paqueteEntrada.getData());
+                    System.out.println("Respuesta: " + respuestaRecibida);
+
+                    if (preguntaActual.esRespuestaCorrecta(respuestaRecibida)) {
+                        mensajeAlCliente = "Correcto";
+                        bufferSalida = mensajeAlCliente.getBytes();
+                        DatagramPacket paqueteSalida = new DatagramPacket(bufferSalida, bufferSalida.length,
+                                direccionClienteIp, puertoCliente);
+                        socket.send(paqueteSalida);
                     } else {
-                        salida.println("Incorrecto. La respuesta correcta es: " + preguntaActual.getRespuestaCorrecta());
+                        mensajeAlCliente = "Incorrecto. La respuesta correcta es: "
+                                + preguntaActual.getRespuestaCorrecta();
+                        bufferSalida = mensajeAlCliente.getBytes();
+                        DatagramPacket paqueteSalida2 = new DatagramPacket(bufferSalida, bufferSalida.length,
+                                direccionClienteIp, puertoCliente);
+                        socket.send(paqueteSalida2);
                     }
 
                     indicePregunta++;
                     if (indicePregunta < Servidor.getPreguntas().size()) {
-                        salida.println("Siguiente pregunta:");
+                        mensajeAlCliente = "Siguiente pregunta:";
+                        System.out.println(mensajeAlCliente);
+                        bufferSalida=mensajeAlCliente.getBytes();
+                        DatagramPacket paqueteSalida2 = new DatagramPacket(bufferSalida, bufferSalida.length,
+                                direccionClienteIp, puertoCliente);
+                        socket.send(paqueteSalida2);
+
                     } else {
-                        salida.println("No hay más preguntas.");
+                        mensajeAlCliente = "No hay más preguntas.";
+                        System.out.println(mensajeAlCliente);
+                        DatagramPacket paqueteSalida2 = new DatagramPacket(bufferSalida, bufferSalida.length,
+                                direccionClienteIp, puertoCliente);
+                        socket.send(paqueteSalida2);
                         break;
                     }
                 } else {
                     break;
                 }
+
             }
         } catch (IOException e) {
             e.printStackTrace();
+
         }
     }
 }
